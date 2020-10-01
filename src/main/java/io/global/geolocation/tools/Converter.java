@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.util.RawValue;
 
 import java.io.File;
 import java.io.IOException;
@@ -85,16 +86,17 @@ public class Converter {
                         out.println("Polygon coordinates are missing!");
                         continue;
                     }
-
+                    polygon = polygon.replaceAll("\\((?=\\d|\\-)", "([");
+                    polygon = polygon.replaceAll("(?<=\\d)\\)", "])");
                     polygon = polygon.replaceAll("\\(", "[");
                     polygon = polygon.replaceAll("\\)", "]");
                     polygon = polygon.replaceAll("(?<=\\d),(?=\\d|\\-)", "],[");
                     polygon = polygon.replaceAll("(?<=\\d)\\s+(?=\\d|\\-)", ",");
-                    //out.println("polygon = " + polygon);
+
                     //var arr =  mapper.createArrayNode().rawValueNode(new RawValue(polygon));
-                    var arr = mapper.readTree( '['+polygon+']');
+                    var arr = mapper.readTree(polygon);
+                    out.print(arr.toPrettyString());
                     //we use auto correcting parser to fix any broken json (open / close brackets)
-                    closePoly(arr, metroName);
                     writer.writeStartObject();
                     writer.writeStringField("type", "Feature");
                     writer.writeObjectField("properties", props);
@@ -114,28 +116,6 @@ public class Converter {
             }
             writer.writeEndObject();
             out.println("processed: " + i + " entries in: " + (System.currentTimeMillis() - start) + "ms");
-        }
-    }
-
-    private static void closePoly(JsonNode node, String metro) {
-        int size  = node.get(0).size();
-        boolean fixed = false;
-        for (int n = 0; n< size; n++) {
-            JsonNode _node = node.get(0).get(n);
-            JsonNode firstNode = _node.get(0);
-            JsonNode lastNode = _node.get(_node.size() - 1);
-            //out.println("firstNode:" + firstNode.toPrettyString());
-            //out.println("secondNode:" + lastNode.toPrettyString());
-            if (firstNode.get(0).asDouble() != lastNode.get(0).asDouble() ||
-                    firstNode.get(1).asDouble() != lastNode.get(1).asDouble()) {
-                fixed = true;
-                //out.println("appending:" + firstNode.toPrettyString());
-                ((ArrayNode) _node).add(firstNode);
-            }
-
-        }
-        if (fixed) {
-            out.println("\"" + metro + "\",");
         }
     }
 }
